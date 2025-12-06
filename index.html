@@ -1,56 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lunch Club</title>
+    <title>Lunch Sync</title>
     
     <!-- PWA / iPhone Configuration -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Lunch Club">
-    
+
+    <!-- FIREBASE SDK (The Cloud Brain) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <style>
-        /* ... KEEP YOUR EXISTING CSS STYLES HERE ... */
-        :root { --primary: #4f46e5; --bg: #f3f4f6; --card: #ffffff; --green: #10b981; --red: #ef4444; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; padding-top: 40px; /* Added padding for status bar */ color: #1f2937; -webkit-tap-highlight-color: transparent; }
+        :root { --primary: #2563eb; --bg: #f3f4f6; --card: #ffffff; --green: #10b981; --red: #ef4444; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; padding-top: 40px; color: #1f2937; -webkit-tap-highlight-color: transparent; }
         
-        /* Auth Screen */
-        #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111827; display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; }
-        #auth-screen input { padding: 12px; font-size: 18px; border-radius: 8px; border: none; margin-bottom: 15px; text-align: center; }
-        #auth-screen button { padding: 12px 24px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; }
-
-        /* Layout */
-        #app { display: none; max-width: 600px; margin: 0 auto; padding-bottom: 50px; }
+        #app { max-width: 600px; margin: 0 auto; padding-bottom: 50px; }
         .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { margin-top: 0; font-size: 1.25rem; color: #374151; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; }
+        h1 { margin: 0 0 20px 0; font-size: 1.5rem; text-align: center; }
+        h2 { margin-top: 0; font-size: 1.1rem; color: #374151; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         
-        /* Inputs & Buttons */
-        input, select { width: 100%; padding: 12px; margin: 8px 0 16px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        input:focus, select:focus { outline: 2px solid var(--primary); border-color: transparent; }
-        
-        button { cursor: pointer; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; font-size: 1rem; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
-        button.secondary { background: #6b7280; width: auto; font-size: 0.8rem; padding: 8px 12px; }
-        button.danger { background: var(--red); margin-top: 10px; }
-        button.add-friend-btn { background: var(--green); width: auto; margin-top: 5px; }
+        /* Status Dot */
+        .status-bar { text-align: center; font-size: 0.8rem; margin-bottom: 10px; color: #666; }
+        .dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot.online { background-color: var(--green); box-shadow: 0 0 5px var(--green); }
 
-        /* Friend Manager Styles */
-        .friend-chip { display: inline-flex; align-items: center; background: #e0e7ff; color: #3730a3; padding: 5px 12px; border-radius: 20px; margin: 5px; font-size: 0.9rem; font-weight: 600; }
-        .friend-chip span { cursor: pointer; margin-left: 8px; color: #ef4444; font-weight: bold; }
-
-        /* Transaction Form */
-        .meal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 8px; }
+        /* Inputs */
+        input, select { width: 100%; padding: 12px; margin: 5px 0 15px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .meal-row { display: flex; align-items: center; gap: 10px; background: #f9fafb; padding: 8px; border-radius: 8px; margin-bottom: 8px; }
         .meal-row label { flex: 1; font-weight: 500; }
         .meal-row input { width: 100px; margin: 0; text-align: right; }
 
-        /* Tables */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; font-size: 0.85rem; text-transform: uppercase; color: #6b7280; padding: 8px; border-bottom: 1px solid #e5e7eb; }
-        td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; font-weight: 500; }
-        .amount-positive { color: var(--green); }
-        .amount-negative { color: var(--red); }
+        button { cursor: pointer; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: bold; width: 100%; font-size: 1rem; }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: #6b7280; width: auto; font-size: 0.8rem; padding: 8px 15px; }
+        button.danger { background: var(--red); margin-top: 10px; }
         
-        .utility-bar { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
+        .friend-chip { display: inline-flex; align-items: center; background: #eff6ff; color: var(--primary); padding: 6px 12px; border-radius: 20px; margin: 4px; font-weight: 600; font-size: 0.9rem; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+        td { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+        .money { font-family: monospace; font-weight: bold; text-align: right; }
     </style>
 </head>
+<body>
+
+    <div id="app">
+        <div class="status-bar">
+            <span id="status-dot" class="dot"></span> <span id="status-text">Connecting...</span>
+        </div>
+        <h1>☁️ Cloud Lunch Club</h1>
+
+        <!-- 1. Manage Friends -->
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h2 style="margin:0; border:none;">Friends</h2>
+                <button class="secondary" onclick="toggleEdit()" id="edit-btn">Edit</button>
+            </div>
+            <div id="friend-list"></div>
+            
+            <div id="edit-area" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+                <input type="text" id="newFriendName" placeholder="Name (e.g. Alice)">
+                <button onclick="addFriend()">Add Person</button>
+            </div>
+        </div>
+
+        <!-- 2. Add Transaction -->
+        <div class="card">
+            <h2>➕ Add Meal</h2>
+            <label>Who Paid?</label>
+            <select id="payerSelect"><option>Loading...</option></select>
+
+            <div style="margin: 15px 0 5px; font-weight:bold; font-size:0.9rem; color:#555;">Who Ate? (Enter Prices)</div>
+            <div id="eater-inputs"></div>
+
+            <label style="margin-top:15px; display:block;">Extra Fees (Tax/Tip)</label>
+            <input type="number" id="extraFee" placeholder="0">
+
+            <button onclick="commitTransaction()">Submit to Cloud 🚀</button>
+        </div>
+
+        <!-- 3. Results -->
+        <div class="card">
+            <h2>💰 Settlement</h2>
+            <div id="settlement-plan"></div>
+        </div>
+
+        <div class="card">
+            <h2>📜 History</h2>
+            <div id="history-log"></div>
+            <button class="danger" onclick="nukeDatabase()">Reset All Data</button>
+        </div>
+    </div>
+
+    <script>
+        // ======================================================
+        // 1. CONFIGURATION (PASTE YOUR FIREBASE CODE BELOW)
+        // ======================================================
+        
+        const firebaseConfig = {
+            // --- REPLACE THESE LINES WITH YOUR COPIED CONFIG ---
+              apiKey: "AIzaSyAvhxhU-uF2uoCeQxmWc6iEuuy92huAbJo",
+              authDomain: "tn-lunch-7f839.firebaseapp.com",
+              databaseURL: "https://tn-lunch-7f839-default-rtdb.asia-southeast1.firebasedatabase.app",
+              projectId: "tn-lunch-7f839",
+              storageBucket: "tn-lunch-7f839.firebasestorage.app",
+              messagingSenderId: "389155413152",
+              appId: "1:389155413152:web:00328c8c71256e8f417dc5"
+            // ---------------------------------------------------
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ======================================================
+        // 2. APP LOGIC
+        // ======================================================
+
+        let localData = { friends: [], ledger: [] };
+
+        // --- REAL-TIME LISTENER ---
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        // Connect to the 'lunchData' node in the database
+        const dataRef = db.ref('lunchData');
+
+        dataRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            statusDot.classList.add('online');
+            statusText.innerText = "Synced";
+            
+            if (data) {
+                localData.friends = data.friends || [];
+                localData.ledger = data.ledger || [];
+            } else {
+                // Database is empty (new)
+                localData = { friends: [], ledger: [] };
+            }
+            renderUI();
+        }, (error) => {
+            statusDot.classList.remove('online');
+            statusText.innerText = "Offline/Error";
+        });
+
+        // --- ACTIONS ---
+
+        function updateCloud() {
+            // Send the entire local state to the cloud
+            // In a pro app we would use transactions, but set() is fine for friends
+            dataRef.set(localData).catch(err => alert("Sync Error: " + err.message));
+        }
+
+        function toggleEdit() {
+            const area = document.getElementById('edit-area');
+            const btn = document.getElementById('edit-btn');
+            if (area.style.display === 'none') {
+                area.style.display = 'block';
+                btn.innerText = 'Done';
+            } else {
+                area.style.display = 'none';
+                btn.innerText = 'Edit';
+            }
+        }
+
+        function addFriend() {
+            const name = document.getElementById('newFriendName').value.trim();
+            if (name && !localData.friends.includes(name)) {
+                if(!localData.friends) localData.friends = [];
+                localData.friends.push(name);
+                document.getElementById('newFriendName').value = '';
+                updateCloud(); // <--- This triggers the sync
+            }
+        }
+
+        function removeFriend(name) {
+            if(confirm("Remove " + name + "?")) {
+                localData.friends = localData.friends.filter(f => f !== name);
+                updateCloud();
+            }
+        }
+
+        function commitTransaction() {
+            const payer = document.getElementById('payerSelect').value;
+            const extra = parseFloat(document.getElementById('extraFee').value) || 0;
+            const inputs = document.querySelectorAll('.meal-cost-input');
+
+            if (!payer) return alert("Select a payer");
+            
+            let subtotal = 0;
+            let details = [];
+
+            inputs.forEach(inp => {
+                const val = parseFloat(inp.value) || 0;
+                if (val > 0) {
+                    subtotal += val;
+                    details.push({ name: inp.dataset.name, base: val });
+                }
+            });
+
+            if (subtotal === 0) return alert("No amounts entered");
+
+            const total = subtotal + extra;
+            const ratio = total / subtotal;
+
+            const transaction = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                payer: payer,
+                total: total,
+                splits: details.map(d => ({
+                    name: d.name,
+                    amount: d.base * ratio
+                }))
+            };
+
+            if(!localData.ledger) localData.ledger = [];
+            localData.ledger.push(transaction);
+            
+            // Clear inputs
+            document.getElementById('extraFee').value = '';
+            inputs.forEach(i => i.value = '');
+            
+            updateCloud(); // <--- Syncs to everyone
+        }
+
+        function nukeDatabase() {
+            if(confirm("DANGER: This will delete ALL data for everyone. Continue?")) {
+                dataRef.set(null);
+            }
+        }
+
+        // --- RENDERING ---
+
+        function renderUI() {
+            const friends = localData.friends || [];
+            
+            // 1. Friend Chips
+            const list = document.getElementById('friend-list');
+            if (friends.length === 0) {
+                list.innerHTML = "<em>No friends added yet.</em>";
+            } else {
+                list.innerHTML = friends.map(f => 
+                    `<span class="friend-chip">${f} <span onclick="removeFriend('${f}')" style="margin-left:5px;color:red;cursor:pointer">×</span></span>`
+                ).join('');
+            }
+
+            // 2. Payer Select
+            const sel = document.getElementById('payerSelect');
+            const savedVal = sel.value;
+            sel.innerHTML = `<option value="" disabled selected>Select...</option>` + 
+                            friends.map(f => `<option value="${f}">${f}</option>`).join('');
+            if (friends.includes(savedVal)) sel.value = savedVal;
+
+            // 3. Inputs
+            // We check if inputs are focused to avoid overwriting while typing (basic check)
+            const inputContainer = document.getElementById('eater-inputs');
+            const currentInputs = document.querySelectorAll('.meal-cost-input');
+            let values = {};
+            currentInputs.forEach(i => values[i.dataset.name] = i.value);
+
+            inputContainer.innerHTML = friends.map(f => `
+                <div class="meal-row">
+                    <label>${f}</label>
+                    <input type="number" class="meal-cost-input" data-name="${f}" placeholder="0" value="${values[f] || ''}">
+                </div>
+            `).join('');
+
+            // 4. Ledger & Settlements
+            calculateSettlement();
+            renderHistory();
+        }
+
+        function calculateSettlement() {
+            let balances = {};
+            (localData.friends || []).forEach(f => balances[f] = 0);
+
+            (localData.ledger || []).forEach(t => {
+                balances[t.payer] = (balances[t.payer] || 0) + t.total;
+                t.splits.forEach(s => {
+                    balances[s.name] = (balances[s.name] || 0) - s.amount;
+                });
+            });
+
+            let debtors = [], creditors = [];
+            for(let [name, val] of Object.entries(balances)) {
+                if(val < -0.01) debtors.push({name, val});
+                if(val > 0.01) creditors.push({name, val});
+            }
+            
+            debtors.sort((a,b) => a.val - b.val);
+            creditors.sort((a,b) => b.val - a.val);
+
+            let html = '<table>';
+            let i=0, j=0;
+            while(i < debtors.length && j < creditors.length) {
+                let d = debtors[i], c = creditors[j];
+                let amt = Math.min(Math.abs(d.val), c.val);
+                
+                html += `<tr><td>${d.name}</td><td>➜ ${c.name}</td><td class="money">$${amt.toFixed(2)}</td></tr>`;
+                
+                d.val += amt; c.val -= amt;
+                if(Math.abs(d.val) < 0.01) i++;
+                if(c.val < 0.01) j++;
+            }
+            html += '</table>';
+            if(debtors.length===0 && creditors.length===0) html = "<p>All settled up!</p>";
+            document.getElementById('settlement-plan').innerHTML = html;
+        }
+
+        function renderHistory() {
+            const hist = document.getElementById('history-log');
+            const ledger = localData.ledger || [];
+            if(ledger.length === 0) {
+                hist.innerHTML = "<p>No meals yet.</p>";
+                return;
+            }
+            hist.innerHTML = ledger.slice().reverse().map(t => 
+                `<div style="padding:10px 0; border-bottom:1px solid #eee;">
+                    <strong>${t.date}</strong>: ${t.payer} paid $${t.total.toFixed(2)}
+                </div>`
+            ).join('');
+        }
+    </script>
+</body>
+</html>
