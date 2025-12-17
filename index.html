@@ -10,8 +10,9 @@
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lunch Club">
 
-    <!-- FIREBASE SDK (The Cloud Brain) -->
+    <!-- FIREBASE SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -39,6 +40,7 @@
         button:active { transform: scale(0.98); }
         button.secondary { background: #6b7280; width: auto; font-size: 0.8rem; padding: 8px 15px; }
         button.danger { background: var(--red); margin-top: 10px; }
+        button.add-btn { background: var(--green); width: auto; margin-top: 5px; }
         
         .friend-chip { display: inline-flex; align-items: center; background: #eff6ff; color: var(--primary); padding: 6px 12px; border-radius: 20px; margin: 4px; font-weight: 600; font-size: 0.9rem; }
         
@@ -65,7 +67,7 @@
             
             <div id="edit-area" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
                 <input type="text" id="newFriendName" placeholder="Name (e.g. Alice)">
-                <button onclick="addFriend()">Add Person</button>
+                <button class="add-btn" onclick="addFriend()">Add Person</button>
             </div>
         </div>
 
@@ -93,17 +95,16 @@
         <div class="card">
             <h2>📜 History</h2>
             <div id="history-log"></div>
-            <button class="danger" onclick="nukeDatabase()">Reset All Data</button>
+            <button class="danger" onclick="resetHistory()">Start New Month (Keep Friends)</button>
         </div>
     </div>
 
     <script>
         // ======================================================
-        // 1. CONFIGURATION (PASTE YOUR FIREBASE CODE BELOW)
+        // 1. CONFIGURATION
         // ======================================================
         
         const firebaseConfig = {
-            // --- REPLACE THESE LINES WITH YOUR COPIED CONFIG ---
               apiKey: "AIzaSyAvhxhU-uF2uoCeQxmWc6iEuuy92huAbJo",
               authDomain: "tn-lunch-7f839.firebaseapp.com",
               databaseURL: "https://tn-lunch-7f839-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -111,7 +112,6 @@
               storageBucket: "tn-lunch-7f839.firebasestorage.app",
               messagingSenderId: "389155413152",
               appId: "1:389155413152:web:00328c8c71256e8f417dc5"
-            // ---------------------------------------------------
         };
 
         // Initialize Firebase
@@ -145,15 +145,15 @@
             }
             renderUI();
         }, (error) => {
+            console.error(error);
             statusDot.classList.remove('online');
-            statusText.innerText = "Offline/Error";
+            statusText.innerText = "Offline / Database Locked";
         });
 
         // --- ACTIONS ---
 
         function updateCloud() {
             // Send the entire local state to the cloud
-            // In a pro app we would use transactions, but set() is fine for friends
             dataRef.set(localData).catch(err => alert("Sync Error: " + err.message));
         }
 
@@ -230,9 +230,11 @@
             updateCloud(); // <--- Syncs to everyone
         }
 
-        function nukeDatabase() {
-            if(confirm("DANGER: This will delete ALL data for everyone. Continue?")) {
-                dataRef.set(null);
+        function resetHistory() {
+            // Updated Logic: Only clear ledger, keep friends
+            if(confirm("Start a new period? This clears HISTORY and DEBTS, but keeps your friends list.")) {
+                localData.ledger = []; // Clear the transactions
+                updateCloud(); // Save to cloud (this sends friends list + empty ledger)
             }
         }
 
@@ -259,7 +261,6 @@
             if (friends.includes(savedVal)) sel.value = savedVal;
 
             // 3. Inputs
-            // We check if inputs are focused to avoid overwriting while typing (basic check)
             const inputContainer = document.getElementById('eater-inputs');
             const currentInputs = document.querySelectorAll('.meal-cost-input');
             let values = {};
