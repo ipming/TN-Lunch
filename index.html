@@ -324,7 +324,7 @@
             }
             hist.innerHTML = ledger.slice().reverse().map(t => 
                 `<div style="padding:10px 0; border-bottom:1px solid #eee;">
-                    <strong>${t.date}</strong>: ${t.payer} paid $${t.total.toFixed(2)}
+                    <strong>${t.date}</strong>: ${t.payer} paid $${t.total.toFixed(1)}
                 </div>`
             ).join('');
         }
