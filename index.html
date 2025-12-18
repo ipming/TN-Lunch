@@ -291,8 +291,8 @@
 
             let debtors = [], creditors = [];
             for(let [name, val] of Object.entries(balances)) {
-                if(val < -0.01) debtors.push({name, val});
-                if(val > 0.01) creditors.push({name, val});
+                if(val < -0.1) debtors.push({name, val});
+                if(val > 0.1) creditors.push({name, val});
             }
             
             debtors.sort((a,b) => a.val - b.val);
@@ -304,11 +304,11 @@
                 let d = debtors[i], c = creditors[j];
                 let amt = Math.min(Math.abs(d.val), c.val);
                 
-                html += `<tr><td>${d.name}</td><td>➜ ${c.name}</td><td class="money">$${amt.toFixed(2)}</td></tr>`;
+                html += `<tr><td>${d.name}</td><td>➜ ${c.name}</td><td class="money">$${amt.toFixed(1)}</td></tr>`;
                 
                 d.val += amt; c.val -= amt;
-                if(Math.abs(d.val) < 0.01) i++;
-                if(c.val < 0.01) j++;
+                if(Math.abs(d.val) < 0.1) i++;
+                if(c.val < 0.1) j++;
             }
             html += '</table>';
             if(debtors.length===0 && creditors.length===0) html = "<p>All settled up!</p>";
